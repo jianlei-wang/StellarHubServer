@@ -1,4 +1,14 @@
-fastapi
-uvicorn
-python-multipart
-rasterio
+# 核心 Web 框架
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+pydantic==2.13.4
+
+# 地理空间数据处理
+rasterio==1.4.4
+rio-cogeo==6.0.0
+numpy==2.2.6
+pyproj==3.7.1
+
+# 打包工具 (可选)
+pyinstaller==6.20.0

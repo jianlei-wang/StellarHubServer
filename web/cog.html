@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <title>COG本地转换工具</title>
+        <style>
+        body{margin:30px;font-family:Microsoft YaHei;background:#f6f6f6;}
+        .box{max-width:900px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 0 8px rgba(0,0,0,0.1);}
+        .progress{width:100%;height:8px;background:#eee;border-radius:4px;margin:15px 0;overflow:hidden;}
+        .bar{height:100%;width:0%;background:#0d6efd;transition:width 0.3s;}
+        .status{margin:10px 0;color:#333;}
+        #download{display:none;padding:8px 16px;background:#198754;color:#fff;border-radius:5px;text-decoration:none;}
+        #startBtn{padding:8px 20px;cursor:pointer;background:#0d6efd;color:#fff;border:none;border-radius:5px;}
+        .path-input{
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .log-box{
+            background:#1e1e1e;
+            color:#dcdcdc;
+            padding:12px;
+            height:300px;
+            overflow-y:auto;
+            border-radius:6px;
+            font-family: Consolas, "Microsoft YaHei";
+            font-size:13px;
+            line-height:1.5;
+            margin-top:15px;
+        }
+        .time-info{
+            margin-top:10px;
+            color:#0d6efd;
+            font-weight:bold;
+        }
+        label{
+            font-weight:bold;
+            color:#333;
+        }
+    </style>
+    </head>
+    <body>
+        <div class="box">
+            <h3>StellarHub COG 本地转换（优化完整版）</h3>
+
+            <label>输入文件路径：</label>
+            <input type="text" class="path-input" id="inputPath"
+                value="G:\\tif\\in\\tif1.tif">
+
+            <label>输出目录（留空=输入文件同目录）：</label>
+            <input type="text" class="path-input" id="outputPath"
+                value="G:\\tif\\out">
+
+            <label>目标坐标系 EPSG（留空=保持原坐标系，如 EPSG:4326、EPSG:3857）：</label>
+            <input type="text" class="path-input" id="dstCrs"
+                placeholder="例如：EPSG:4326">
+
+            <button id="startBtn" onclick="startTest()">开始转换</button>
+
+            <div class="progress"><div class="bar" id="bar"></div></div>
+            <div id="status" class="status">准备就绪</div>
+            <div id="timeInfo" class="time-info"></div>
+            <a id="download">下载COG</a>
+
+            <div class="log-box" id="logBox"></div>
+        </div>
+
+        <script>
+    let taskId = null;
+    let startTime = null;
+
+    function addLog(msg) {
+        const logBox = document.getElementById("logBox");
+        const time = new Date().toLocaleTimeString();
+        logBox.innerHTML += `[${time}] ${msg}\n`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function startTimer() {
+        startTime = new Date();
+        document.getElementById("timeInfo").innerText = "开始时间：" + startTime.toLocaleString();
+    }
+
+    function stopTimer() {
+        const endTime = new Date();
+        const useTime = ((endTime - startTime) / 1000).toFixed(2);
+        document.getElementById("timeInfo").innerText =
+            `开始：${startTime.toLocaleString()} | 结束：${endTime.toLocaleString()} | 耗时：${useTime}s`;
+    }
+
+    async function startTest() {
+        const inputPath = document.getElementById("inputPath").value;
+        const outputPath = document.getElementById("outputPath").value;
+        const dstCrs = document.getElementById("dstCrs").value;
+
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("bar").style.width = "0%";
+        document.getElementById("status").innerText = "准备中...";
+        document.getElementById("download").style.display = "none";
+        document.getElementById("logBox").innerText = "";
+        document.getElementById("timeInfo").innerText = "";
+
+        addLog("===== COG 转换启动 =====");
+        addLog("输入：" + inputPath);
+        addLog("输出目录：" + (outputPath || "输入文件同目录"));
+        addLog("目标坐标系：" + (dstCrs || "原始坐标系"));
+        startTimer();
+
+        try {
+            let res = await fetch("/cog/local/convert", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: "file_path=" + encodeURIComponent(inputPath)
+                     + "&output_dir=" + encodeURIComponent(outputPath)
+                     + "&dst_crs=" + encodeURIComponent(dstCrs)
+            });
+
+            let data = await res.json();
+            taskId = data.task_id;
+            addLog("任务创建成功：" + taskId);
+            checkProgress();
+        } catch (e) {
+            addLog("请求失败：" + e.message);
+            document.getElementById("startBtn").disabled = false;
+        }
+    }
+
+    function checkProgress() {
+        fetch(`/cog/progress/${taskId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("bar").style.width = data.progress + "%";
+                document.getElementById("status").innerText = data.msg;
+                addLog(data.msg);
+
+                if (data.status === "completed") {
+                    stopTimer();
+                    addLog("===== 转换全部完成 =====");
+                    let a = document.getElementById("download");
+                    a.href = `/cog/download/${taskId}`;
+                    a.style.display = "inline-block";
+                    document.getElementById("startBtn").disabled = false;
+                } else if (data.status === "failed") {
+                    addLog("失败：" + data.msg);
+                    document.getElementById("startBtn").disabled = false;
+                } else {
+                    setTimeout(checkProgress, 300);
+                }
+            });
+    }
+</script>
+    </body>
+</html>

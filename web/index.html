@@ -18,67 +18,126 @@
     </div>
 
     <div style="margin-top: 20px;">
-      <label for="outputPath">输出 COG 路径（留空则自动生成）：</label>
+      <label for="outputPath">输出目录（留空则同输入目录）：</label>
       <input
         type="text"
-        id="outputPath"
-        placeholder="可选：C:/temp/output_cog.tif"
+        id="outputDir"
+        placeholder="例如：C:/temp/"
         style="width: 100%; padding: 10px; margin-top: 5px;"
       />
-      <button style="margin-top: 10px;" onclick="convertCog()">转换为 COG</button>
+      <label for="dstCrs" style="margin-top: 10px; display: block;">目标坐标系（可选，如 EPSG:4326）：</label>
+      <input
+        type="text"
+        id="dstCrs"
+        placeholder="可选：EPSG:4326"
+        style="width: 100%; padding: 10px; margin-top: 5px;"
+      />
+      
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <div style="flex: 1;">
+          <label>压缩方式：</label>
+          <select id="profile" style="width: 100%; padding: 5px;">
+            <option value="deflate">deflate (推荐)</option>
+            <option value="lzw">lzw</option>
+            <option value="packbits">packbits</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label>重采样：</label>
+          <select id="resampling" style="width: 100%; padding: 5px;">
+            <option value="bilinear">bilinear (双线性)</option>
+            <option value="nearest">nearest (最近邻)</option>
+            <option value="cubic">cubic (三次卷积)</option>
+            <option value="lanczos">lanczos</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <div style="flex: 1;">
+          <label>金字塔层级：</label>
+          <input type="number" id="overviewLevel" value="6" style="width: 100%; padding: 5px;" />
+        </div>
+        <div style="flex: 1;">
+          <label>瓦片大小：</label>
+          <input type="number" id="blocksize" value="512" style="width: 100%; padding: 5px;" />
+        </div>
+      </div>
+
+      <button style="margin-top: 15px; width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; cursor: pointer;" onclick="convertCog()">转换为 COG</button>
     </div>
 
     <pre id="res"></pre>
 
     <script>
       const base = 'http://127.0.0.1:10086';
+      
       async function readDir() {
-        const r = await fetch(
-          `${base}/api/read-dir?path=${encodeURIComponent(document.getElementById('path').value)}`,
-        );
-        document.getElementById('res').innerText = JSON.stringify(
-          await r.json(),
-          null,
-          2,
-        );
+        const path = document.getElementById('path').value;
+        const r = await fetch(`${base}/api/read-dir?path=${encodeURIComponent(path)}`);
+        const result = await r.json();
+        document.getElementById('res').innerText = JSON.stringify(result, null, 2);
       }
+
       async function readText() {
-        const r = await fetch(
-          `${base}/api/read-text?path=${encodeURIComponent(document.getElementById('path').value)}`,
-        );
-        document.getElementById('res').innerText = JSON.stringify(
-          await r.json(),
-          null,
-          2,
-        );
+        const path = document.getElementById('path').value;
+        const r = await fetch(`${base}/api/read-text?path=${encodeURIComponent(path)}`);
+        const result = await r.json();
+        document.getElementById('res').innerText = JSON.stringify(result, null, 2);
       }
+
       function openFile() {
-        window.open(
-          `${base}/api/file?path=${encodeURIComponent(document.getElementById('path').value)}`,
-        );
+        const path = document.getElementById('path').value;
+        window.open(`${base}/api/file?path=${encodeURIComponent(path)}`);
       }
 
       async function convertCog() {
-        const input = document.getElementById('path').value;
-        const output = document.getElementById('outputPath').value;
-        const params = new URLSearchParams();
-        params.append('input_path', input);
-        if (output) {
-          params.append('output_path', output);
-        }
+        const filePath = document.getElementById('path').value;
+        const outputDir = document.getElementById('outputDir').value;
+        const dstCrs = document.getElementById('dstCrs').value;
+        const profile = document.getElementById('profile').value;
+        const resampling = document.getElementById('resampling').value;
+        const overviewLevel = document.getElementById('overviewLevel').value;
+        const blocksize = document.getElementById('blocksize').value;
 
-        const r = await fetch(`${base}/api/convert-cog?${params.toString()}`, {
-          method: 'POST',
-        });
+        const formData = new FormData();
+        formData.append('file_path', filePath);
+        formData.append('output_dir', outputDir);
+        formData.append('dst_crs', dstCrs);
+        formData.append('profile', profile);
+        formData.append('resampling', resampling);
+        formData.append('overview_level', overviewLevel);
+        formData.append('blocksize', blocksize);
 
-        const result = await r.json();
-        if (result.code === 200) {
-          document.getElementById('res').innerHTML =
-            `转换成功：\n${JSON.stringify(result, null, 2)}`;
-        } else {
-          document.getElementById('res').innerHTML =
-            `转换失败：\n${JSON.stringify(result, null, 2)}`;
+        try {
+          const r = await fetch(`${base}/cog/local/convert`, {
+            method: 'POST',
+            body: formData
+          });
+
+          const result = await r.json();
+          document.getElementById('res').innerText = `任务已提交：\n${JSON.stringify(result, null, 2)}`;
+          
+          if (result.task_id) {
+              // 自动轮询进度
+              pollProgress(result.task_id);
+          }
+        } catch (e) {
+          document.getElementById('res').innerText = `请求失败：${e.message}`;
         }
+      }
+
+      async function pollProgress(taskId) {
+        const timer = setInterval(async () => {
+          const r = await fetch(`${base}/cog/progress/${taskId}`);
+          const task = await r.json();
+          document.getElementById('res').innerText = `转换进度：\n${JSON.stringify(task, null, 2)}`;
+          
+          if (task.status === 'completed' || task.status === 'failed') {
+            clearInterval(timer);
+          }
+        }, 2000);
       }
     </script>
   </body>

@@ -1,51 +1,26 @@
+# StellarHubServer
 
-# 本地文件服务化工具
+基于 Python FastAPI 的本地文件服务与 TIFF 转 COG 工具。
 
-基于 FastAPI 构建的轻量级本地文件服务，支持 Web 页面调用、接口管理、无限扩展。
+## 快速开始
 
-## 启动命令
+1. 安装依赖：`pip install -r requirements.txt`
+2. 启动服务：`python src/main.py`
+3. 访问页面：`http://127.0.0.1:10086/web/index.html`
 
-1. 安装依赖：pip install -r requirements.txt
-2. 启动服务：python main.py
+## 详细文档
 
-## 访问地址
+请参阅 [项目说明文档](docs/project_docs.md) 获取详细的结构说明、API 指南及优化细节。
 
-- 服务地址：<http://127.0.0.1:10086>
-- Web管理端：<http://127.0.0.1:10086/web/index.html>
-- 接口文档：<http://127.0.0.1:10086/docs>
+## 核心功能
 
-## 功能列表
+- **文件浏览**：远程查看服务器本地目录与文件。
+- **COG 转换**：TIFF 转换为 Cloud Optimized GeoTIFF，支持重投影。
+- **进度追踪**：支持大文件转换的实时进度查询。
 
-1. 读取本地文件夹
-2. 读取文本文件（UTF-8/GBK兼容）
-3. 预览/下载任意文件
-4. 本地 TIF/TIFF 转换为 COG (Cloud Optimized GeoTIFF)
+## 优化记录 (2026-05-13)
 
-## 结构
-
-``` plaintext
-StellarHubServer/
-├── app/                     # 核心业务模块（未来所有新功能都放这里）
-│   ├── __init__.py          # 包标识
-│   ├── core/                # 系统核心（配置、异常、响应）
-│   │   ├── __init__.py
-│   │   ├── config.py        # 全局配置（端口、IP、跨域等）
-│   │   ├── exception.py     # 全局异常处理
-│   │   └── response.py      # 统一响应格式
-│   ├── api/                 # 接口模块（按功能拆分）
-│   │   ├── __init__.py
-│   │   ├── file.py          # 文件服务接口
-│   │   └── tif.py           # TIF 转 COG 接口
-│   ├── service/             # 业务服务模块
-│   │   ├── __init__.py
-│   │   ├── file_service.py  # 文件操作服务
-│   │   └── tif_service.py   # TIF 转 COG 服务
-│   └── utils/               # 工具类（通用方法）
-│       ├── __init__.py
-│       └── path_util.py     # 资源路径兼容工具
-├── web/                     # Web前端页面（后续可直接放Vue/HTML）
-│   └── index.html           # 测试用Web页面
-├── main.py                  # 项目启动入口
-├── requirements.txt         # 依赖声明
-└── README.md                # 使用说明
-```
+- 项目结构重构，引入 `src/` 标准布局。
+- 全面适配 PEP 8 编码规范。
+- 强化模块化设计，解耦 API 与业务逻辑。
+- 完善日志记录与异常捕获机制。
