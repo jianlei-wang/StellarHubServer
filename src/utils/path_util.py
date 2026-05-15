@@ -19,3 +19,14 @@ def resource_path(relative_path: str) -> str:
 
     target_path = Path(base_path) / relative_path
     return str(target_path)
+
+def normalize_path(path_str: str) -> str:
+    """
+    规范化路径，处理不同系统的斜杠，并转换为绝对路径
+    """
+    if not path_str:
+        return ""
+    
+    # 转换为 Path 对象，它会自动处理斜杠方向
+    path = Path(path_str).resolve()
+    return str(path)

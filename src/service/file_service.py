@@ -4,13 +4,18 @@
 import os
 import logging
 from typing import List, Dict, Any
+from utils.path_util import normalize_path
 
 logger = logging.getLogger("StellarHub.file_service")
+
+# 文本文件读取最大限制 (5MB)，防止 OOM
+MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024 
 
 def list_directory(path: str) -> List[Dict[str, Any]]:
     """
     列出目录下的所有文件和文件夹
     """
+    path = normalize_path(path)
     if not os.path.exists(path):
         raise Exception(f"路径不存在: {path}")
     
@@ -22,11 +27,18 @@ def list_directory(path: str) -> List[Dict[str, Any]]:
         for name in os.listdir(path):
             full_path = os.path.join(path, name)
             is_dir = os.path.isdir(full_path)
+            size = 0
+            if not is_dir:
+                try:
+                    size = os.path.getsize(full_path)
+                except Exception:
+                    size = -1 # 表示无法获取大小
+            
             items.append({
                 "name": name,
                 "path": full_path,
                 "is_dir": is_dir,
-                "size": os.path.getsize(full_path) if not is_dir else 0,
+                "size": size,
                 "ext": os.path.splitext(name)[1].lower() if not is_dir else ""
             })
         
@@ -44,9 +56,15 @@ def read_text_file(path: str) -> str:
     """
     读取文本文件内容
     """
+    path = normalize_path(path)
     if not os.path.exists(path):
         raise Exception("文件不存在")
     
+    # 检查文件大小
+    file_size = os.path.getsize(path)
+    if file_size > MAX_TEXT_FILE_SIZE:
+        raise Exception(f"文件过大 ({file_size / 1024 / 1024:.2f}MB)，超过限制 {MAX_TEXT_FILE_SIZE / 1024 / 1024:.0f}MB，请使用其他工具打开")
+
     try:
         # 尝试使用 utf-8 读取，如果失败可以考虑自动检测编码
         with open(path, "r", encoding="utf-8") as f:

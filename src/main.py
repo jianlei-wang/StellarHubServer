@@ -51,6 +51,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "Content-Type"],
 )
 
 @app.exception_handler(APIException)
@@ -61,6 +62,20 @@ async def handle_api_exception(request: Request, exc: APIException):
 # 挂载静态页面
 web_dir = resource_path("web")
 app.mount("/web", StaticFiles(directory=web_dir), name="web")
+
+# ========================================================
+# 突破性改进：模拟 Nginx 静态文件挂载
+# ========================================================
+# 自动探测并挂载本地盘符，解决 API 模式下 Range 请求不稳定问题
+for drive in ['C', 'D', 'E', 'F', 'G', 'H']:
+    drive_root = f"{drive}:/"
+    if os.path.exists(drive_root):
+        try:
+            # 使用静态文件挂载模式，原生支持 206 Partial Content
+            app.mount(f"/fs/{drive}", StaticFiles(directory=drive_root), name=f"fs_{drive}")
+            logger.info(f"🚀 已挂载本地驱动器 {drive}: 到虚拟路径 /fs/{drive}")
+        except Exception as e:
+            logger.error(f"无法挂载驱动器 {drive}: {str(e)}")
 
 # 路由挂载
 app.include_router(file_router)
