@@ -3,18 +3,18 @@
   <div id="cesiumContainer">
     <div class="tools">
       <button
-        @click="addCogImageryLayer('http://localhost:8089/tif/big_cog.tif')"
+        @click="addCogImageryLayer('http://localhost:8066/tif/test_cog.tif')"
       >
-        添加图层
+        添加图层（NGINX）
       </button>
       <button
         @click="
           addCogImageryLayer(
-            'http://localhost:10086/fs/D/nginx-1.24.0/html/tif/test_cog.tif',
+            'http://localhost:10086/api/file?path=D:\\nginx-1.26.3\\html\\tif\\test_cog.tif',
           )
         "
       >
-        添加图层2
+        添加图层（本地服务）
       </button>
     </div>
   </div>

@@ -51,7 +51,7 @@ exe = EXE(
     a.scripts,
     a.binaries,
     a.datas,
-    name='FileService',
+    name='StellarHubService',
     debug=False,
     strip=False,
     upx=True,

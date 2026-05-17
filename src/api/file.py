@@ -1,7 +1,7 @@
 import logging
 import os
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from core.response import success, error
 from service.file_service import list_directory, read_text_file
 from utils.path_util import normalize_path
@@ -33,27 +33,94 @@ async def read_text(path: str = Query(..., description="文本文件路径")):
         logger.error(f"读取文本文件失败: {path}, 错误: {str(e)}")
         return error(str(e), code=400)
 
-@router.get("/api/file", summary="获取文件流")
+@router.get("/api/file", summary="获取文件流（支持 HTTP Range 请求）")
 async def get_file(request: Request, path: str = Query(..., description="文件路径")):
     """
-    备用文件流接口。对于 COG 等大文件，建议使用 /fs/{drive}/... 挂载路径。
+    文件流接口，完整支持 HTTP Range 请求（206 Partial Content）。
+    COG/GeoTIFF 等栅格数据必须使用此接口，geotiff.js 依赖 Range 请求实现按需读取。
     """
     try:
         norm_path = normalize_path(path)
         if not os.path.exists(norm_path) or not os.path.isfile(norm_path):
             return JSONResponse(status_code=404, content=error("文件不存在", code=404))
-            
-        stat_result = os.stat(norm_path)
+        
+        file_size = os.path.getsize(norm_path)
         
         # 针对 TIFF 明确类型
-        media_type = "image/tiff" if norm_path.lower().endswith(('.tif', '.tiff')) else None
+        media_type = "image/tiff" if norm_path.lower().endswith(('.tif', '.tiff')) else "application/octet-stream"
         
-        # FileResponse 配合 stat_result 可以支持基础的 Range 请求
-        return FileResponse(
-            norm_path, 
-            media_type=media_type,
-            stat_result=stat_result
-        )
+        # 检查是否包含 Range 请求头
+        range_header = request.headers.get("range")
+        
+        if range_header:
+            # 解析 Range 头（例如: "bytes=0-1023" 或 "bytes=500-"）
+            import re
+            range_match = re.search(r'bytes=(\d*)-(\d*)', range_header)
+            if not range_match:
+                return JSONResponse(status_code=400, content=error("无效的 Range 请求头", code=400))
+            
+            start_str, end_str = range_match.groups()
+            start = int(start_str) if start_str else 0
+            end = int(end_str) if end_str else file_size - 1
+            
+            # 验证范围合法性
+            if start >= file_size or end >= file_size or start > end:
+                return JSONResponse(
+                    status_code=416, 
+                    content=error("请求范围超出文件大小", code=416),
+                    headers={"Content-Range": f"bytes */{file_size}"}
+                )
+            
+            # 限制单次读取最大 10MB，防止恶意请求
+            max_chunk = 10 * 1024 * 1024
+            if end - start + 1 > max_chunk:
+                end = start + max_chunk - 1
+            
+            content_length = end - start + 1
+            
+            # 异步文件读取生成器
+            async def file_iterator():
+                with open(norm_path, 'rb') as f:
+                    f.seek(start)
+                    remaining = content_length
+                    chunk_size = 8192  # 8KB 分块读取
+                    while remaining > 0:
+                        chunk = f.read(min(chunk_size, remaining))
+                        if not chunk:
+                            break
+                        yield chunk
+                        remaining -= len(chunk)
+            
+            # 返回 206 Partial Content
+            return StreamingResponse(
+                file_iterator(),
+                status_code=206,
+                media_type=media_type,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(content_length),
+                }
+            )
+        else:
+            # 无 Range 头，返回完整文件
+            async def full_file_iterator():
+                with open(norm_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(8192)
+                        if not chunk:
+                            break
+                        yield chunk
+            
+            return StreamingResponse(
+                full_file_iterator(),
+                status_code=200,
+                media_type=media_type,
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(file_size),
+                }
+            )
     except Exception as e:
         logger.error(f"获取文件流失败: {path}, 错误: {str(e)}")
         return JSONResponse(status_code=500, content=error("文件获取失败", code=500))
