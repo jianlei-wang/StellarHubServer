@@ -10,7 +10,7 @@
       <button
         @click="
           addCogImageryLayer(
-            'http://localhost:10086/api/file?path=D:\\nginx-1.26.3\\html\\tif\\test_cog.tif',
+            'http://localhost:10086/api/file?path=D:\\nginx-1.24.0\\html\\tif\\DOM_20260517224945_cog.tif',
           )
         "
       >

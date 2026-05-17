@@ -75,7 +75,8 @@ async def index():
         "status": "running",
         "endpoints": {
             "file_service": ["/api/read-dir", "/api/read-text", "/api/file"],
-            "cog_service": ["/cog/local/convert", "/cog/batch/local", "/cog/progress/{task_id}"]
+            "cog_service": ["/cog/local/convert", "/cog/batch/local", "/cog/progress/{task_id}", "/cog/result/{task_id}"],
+            "pages": ["/web/index.html", "/web/cog.html"]
         }
     }
 

@@ -1,156 +1,614 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-    <head>
-        <meta charset="UTF-8">
-        <title>COG本地转换工具</title>
-        <style>
-        body{margin:30px;font-family:Microsoft YaHei;background:#f6f6f6;}
-        .box{max-width:900px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 0 8px rgba(0,0,0,0.1);}
-        .progress{width:100%;height:8px;background:#eee;border-radius:4px;margin:15px 0;overflow:hidden;}
-        .bar{height:100%;width:0%;background:#0d6efd;transition:width 0.3s;}
-        .status{margin:10px 0;color:#333;}
-        #download{display:none;padding:8px 16px;background:#198754;color:#fff;border-radius:5px;text-decoration:none;}
-        #startBtn{padding:8px 20px;cursor:pointer;background:#0d6efd;color:#fff;border:none;border-radius:5px;}
-        .path-input{
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StellarHub - COG 转换工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #fff;
+            padding: 20px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+        .form-input {
             width: 100%;
-            padding: 8px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 9px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
             font-size: 14px;
+            transition: border-color 0.2s;
         }
-        .log-box{
-            background:#1e1e1e;
-            color:#dcdcdc;
-            padding:12px;
-            height:300px;
-            overflow-y:auto;
-            border-radius:6px;
-            font-family: Consolas, "Microsoft YaHei";
-            font-size:13px;
-            line-height:1.5;
-            margin-top:15px;
+        .form-input:focus { outline: none; border-color: #11998e; }
+        .form-select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #fff;
         }
-        .time-info{
-            margin-top:10px;
-            color:#0d6efd;
-            font-weight:bold;
+        .form-select:focus { outline: none; border-color: #11998e; }
+        .form-row {
+            display: flex;
+            gap: 12px;
         }
-        label{
-            font-weight:bold;
-            color:#333;
+        .form-row .form-group { flex: 1; }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
+        .btn-primary { background: #11998e; color: #fff; }
+        .btn-primary:hover { background: #0e857b; }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-outline {
+            background: #fff;
+            color: #11998e;
+            border: 1px solid #11998e;
+        }
+        .btn-outline:hover { background: #f0fdf9; }
+
+        /* 进度条 */
+        .progress-wrap { margin: 16px 0; }
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #e8e8e8;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* 日志区 */
+        .log-box {
+            background: #1e1e1e;
+            color: #dcdcdc;
+            padding: 14px;
+            height: 300px;
+            overflow-y: auto;
+            border-radius: 8px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 12px;
+        }
+        .log-box .log-success { color: #73d13d; }
+        .log-box .log-error { color: #ff7875; }
+        .log-box .log-info { color: #69c0ff; }
+
+        /* 折叠面板 */
+        .collapse-header {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            user-select: none;
+        }
+        .collapse-header:hover { color: #11998e; }
+        .collapse-arrow { transition: transform 0.2s; font-size: 12px; }
+        .collapse-arrow.open { transform: rotate(90deg); }
+        .collapse-body { display: none; }
+        .collapse-body.show { display: block; }
+
+        /* 结果下载 */
+        .result-box {
+            display: none;
+            padding: 16px;
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .result-box.show { display: block; }
+        .result-box a {
+            color: #389e0d;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .result-box a:hover { text-decoration: underline; }
+
+        /* 任务历史 */
+        .task-item {
+            padding: 8px 12px;
+            border: 1px solid #f0f0f0;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-item .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px;
+        }
+        .status-pending { background: #faad14; }
+        .status-running { background: #1890ff; }
+        .status-completed { background: #52c41a; }
+        .status-failed { background: #ff4d4f; }
     </style>
-    </head>
-    <body>
-        <div class="box">
-            <h3>StellarHub COG 本地转换（优化完整版）</h3>
+</head>
+<body>
+    <div class="header">
+        <h1>StellarHub COG 转换工具</h1>
+        <p>TIFF → Cloud Optimized GeoTIFF 本地转换服务</p>
+    </div>
 
-            <label>输入文件路径：</label>
-            <input type="text" class="path-input" id="inputPath"
-                value="G:\\tif\\in\\tif1.tif">
+    <div class="container">
+        <!-- 基本参数 -->
+        <div class="card">
+            <div class="card-title">📁 基本参数</div>
 
-            <label>输出目录（留空=输入文件同目录）：</label>
-            <input type="text" class="path-input" id="outputPath"
-                value="G:\\tif\\out">
+            <div class="form-group">
+                <label>输入文件路径 *</label>
+                <input type="text" class="form-input" id="inputPath" placeholder="例如：D:\\data\\input.tif">
+            </div>
 
-            <label>目标坐标系 EPSG（留空=保持原坐标系，如 EPSG:4326、EPSG:3857）：</label>
-            <input type="text" class="path-input" id="dstCrs"
-                placeholder="例如：EPSG:4326">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>输出目录</label>
+                    <input type="text" class="form-input" id="outputDir" placeholder="留空 = 输入文件同目录">
+                    <div class="hint">留空则与输入文件同目录</div>
+                </div>
+                <div class="form-group">
+                    <label>输出文件名</label>
+                    <input type="text" class="form-input" id="outputFilename" placeholder="留空自动生成">
+                    <div class="hint">默认: {原文件名}_{时间戳}_cog.tif</div>
+                </div>
+            </div>
 
-            <button id="startBtn" onclick="startTest()">开始转换</button>
+            <div class="form-group">
+                <label>目标坐标系 EPSG</label>
+                <input type="text" class="form-input" id="dstCrs" placeholder="留空 = 保持原坐标系，例如 EPSG:4326、EPSG:3857">
+                <div class="hint">留空保持源文件坐标系不变；指定后将进行重投影</div>
+            </div>
+        </div>
 
-            <div class="progress"><div class="bar" id="bar"></div></div>
-            <div id="status" class="status">准备就绪</div>
-            <div id="timeInfo" class="time-info"></div>
-            <a id="download">下载COG</a>
+        <!-- 压缩与瓦片参数 -->
+        <div class="card">
+            <div class="card-title">🔧 压缩与瓦片配置</div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>压缩方式</label>
+                    <select class="form-select" id="profile">
+                        <option value="deflate">deflate (推荐，无损压缩)</option>
+                        <option value="lzw">lzw (无损压缩)</option>
+                        <option value="packbits">packbits (快速无损)</option>
+                        <option value="jpeg">jpeg (有损压缩，体积最小)</option>
+                        <option value="webp">webp (有损压缩)</option>
+                        <option value="zstd">zstd (高性能无损)</option>
+                        <option value="lzma">lzma (高压缩比无损)</option>
+                        <option value="none">none (无压缩)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>瓦片大小</label>
+                    <select class="form-select" id="blocksize">
+                        <option value="128">128</option>
+                        <option value="256">256</option>
+                        <option value="512" selected>512 (推荐)</option>
+                        <option value="1024">1024</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>金字塔层级</label>
+                    <input type="number" class="form-input" id="overviewLevel" value="6" min="0" max="10">
+                    <div class="hint">0-10，层级越多多级分辨率越好，但文件更大</div>
+                </div>
+                <div class="form-group">
+                    <label>BigTIFF 策略</label>
+                    <select class="form-select" id="bigtiff">
+                        <option value="IF_SAFER">IF_SAFER (推荐)</option>
+                        <option value="IF_NEEDED">IF_NEEDED</option>
+                        <option value="YES">YES (强制BigTIFF)</option>
+                        <option value="NO">NO (禁止BigTIFF)</option>
+                    </select>
+                    <div class="hint">文件超过4GB时需要 BigTIFF 支持</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 高级参数 -->
+        <div class="card">
+            <div class="collapse-header" onclick="toggleCollapse('advancedParams')">
+                <span style="font-size: 16px; font-weight: 600;">⚡ 高级参数</span>
+                <span class="collapse-arrow" id="advancedParams-arrow">▶</span>
+            </div>
+            <div class="collapse-body" id="advancedParams">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>重采样算法</label>
+                        <select class="form-select" id="resampling">
+                            <option value="bilinear">bilinear (双线性插值，推荐)</option>
+                            <option value="nearest">nearest (最近邻，分类数据推荐)</option>
+                            <option value="cubic">cubic (三次卷积)</option>
+                            <option value="lanczos">lanczos (Lanczos)</option>
+                            <option value="average">average (平均)</option>
+                        </select>
+                        <div class="hint">重投影时使用的插值算法</div>
+                    </div>
+                    <div class="form-group">
+                        <label>金字塔重采样算法</label>
+                        <select class="form-select" id="overviewsResampling">
+                            <option value="">(同重采样算法)</option>
+                            <option value="nearest">nearest (最近邻)</option>
+                            <option value="bilinear">bilinear (双线性)</option>
+                            <option value="cubic">cubic (三次卷积)</option>
+                            <option value="lanczos">lanczos (Lanczos)</option>
+                            <option value="average">average (平均)</option>
+                        </select>
+                        <div class="hint">生成金字塔概览图时使用，留空则与重采样算法相同</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>NoData 值</label>
+                        <input type="text" class="form-input" id="nodata" placeholder="留空 = 自动读取源文件">
+                        <div class="hint">指定无效数据值，留空则自动从源文件读取</div>
+                    </div>
+                    <div class="form-group">
+                        <label>输出数据类型</label>
+                        <select class="form-select" id="dtype">
+                            <option value="">(保持源文件类型)</option>
+                            <option value="uint8">uint8</option>
+                            <option value="uint16">uint16</option>
+                            <option value="int16">int16</option>
+                            <option value="uint32">uint32</option>
+                            <option value="int32">int32</option>
+                            <option value="float32">float32</option>
+                            <option value="float64">float64</option>
+                        </select>
+                        <div class="hint">强制转换输出数据类型，留空保持源文件类型</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>JPEG/WebP 压缩质量</label>
+                    <input type="number" class="form-input" id="quality" placeholder="1-100，仅 jpeg/webp 压缩时有效" min="1" max="100">
+                    <div class="hint">仅在压缩方式为 jpeg 或 webp 时生效，推荐 75-95</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 转换操作 -->
+        <div class="card">
+            <div class="card-title">🚀 转换操作</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-primary" id="startBtn" onclick="startConvert()">开始转换</button>
+                <button class="btn btn-outline" onclick="resetForm()">重置参数</button>
+            </div>
+
+            <div class="progress-wrap">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="progressStatus">准备就绪</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+
+            <div class="result-box" id="resultBox">
+                <div>✅ 转换完成！</div>
+                <div style="margin-top:8px;">
+                    <a id="downloadLink" href="#" target="_blank">📥 下载 COG 文件</a>
+                </div>
+                <div id="outputPathInfo" style="margin-top:4px; font-size:12px; color:#888;"></div>
+            </div>
 
             <div class="log-box" id="logBox"></div>
         </div>
 
-        <script>
-    let taskId = null;
-    let startTime = null;
+        <!-- 任务历史 -->
+        <div class="card">
+            <div class="card-title">📋 任务历史</div>
+            <div id="taskHistory">
+                <div style="color: #bbb; font-size: 13px; text-align: center; padding: 20px;">暂无转换任务</div>
+            </div>
+        </div>
+    </div>
 
-    function addLog(msg) {
-        const logBox = document.getElementById("logBox");
-        const time = new Date().toLocaleTimeString();
-        logBox.innerHTML += `[${time}] ${msg}\n`;
-        logBox.scrollTop = logBox.scrollHeight;
-    }
+    <script>
+        const base = window.location.origin;
+        let currentTaskId = null;
+        let startTime = null;
+        let pollTimer = null;
+        const taskHistory = [];
 
-    function startTimer() {
-        startTime = new Date();
-        document.getElementById("timeInfo").innerText = "开始时间：" + startTime.toLocaleString();
-    }
-
-    function stopTimer() {
-        const endTime = new Date();
-        const useTime = ((endTime - startTime) / 1000).toFixed(2);
-        document.getElementById("timeInfo").innerText =
-            `开始：${startTime.toLocaleString()} | 结束：${endTime.toLocaleString()} | 耗时：${useTime}s`;
-    }
-
-    async function startTest() {
-        const inputPath = document.getElementById("inputPath").value;
-        const outputPath = document.getElementById("outputPath").value;
-        const dstCrs = document.getElementById("dstCrs").value;
-
-        document.getElementById("startBtn").disabled = true;
-        document.getElementById("bar").style.width = "0%";
-        document.getElementById("status").innerText = "准备中...";
-        document.getElementById("download").style.display = "none";
-        document.getElementById("logBox").innerText = "";
-        document.getElementById("timeInfo").innerText = "";
-
-        addLog("===== COG 转换启动 =====");
-        addLog("输入：" + inputPath);
-        addLog("输出目录：" + (outputPath || "输入文件同目录"));
-        addLog("目标坐标系：" + (dstCrs || "原始坐标系"));
-        startTimer();
-
-        try {
-            let res = await fetch("/cog/local/convert", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: "file_path=" + encodeURIComponent(inputPath)
-                     + "&output_dir=" + encodeURIComponent(outputPath)
-                     + "&dst_crs=" + encodeURIComponent(dstCrs)
-            });
-
-            let data = await res.json();
-            taskId = data.task_id;
-            addLog("任务创建成功：" + taskId);
-            checkProgress();
-        } catch (e) {
-            addLog("请求失败：" + e.message);
-            document.getElementById("startBtn").disabled = false;
+        // ==================== 折叠面板 ====================
+        function toggleCollapse(id) {
+            const body = document.getElementById(id);
+            const arrow = document.getElementById(id + '-arrow');
+            body.classList.toggle('show');
+            arrow.classList.toggle('open');
         }
-    }
 
-    function checkProgress() {
-        fetch(`/cog/progress/${taskId}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById("bar").style.width = data.progress + "%";
-                document.getElementById("status").innerText = data.msg;
-                addLog(data.msg);
+        // ==================== 日志 ====================
+        function addLog(msg, type = '') {
+            const logBox = document.getElementById('logBox');
+            const time = new Date().toLocaleTimeString();
+            const cls = type === 'success' ? 'log-success' : type === 'error' ? 'log-error' : type === 'info' ? 'log-info' : '';
+            logBox.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
 
-                if (data.status === "completed") {
-                    stopTimer();
-                    addLog("===== 转换全部完成 =====");
-                    let a = document.getElementById("download");
-                    a.href = `/cog/download/${taskId}`;
-                    a.style.display = "inline-block";
-                    document.getElementById("startBtn").disabled = false;
-                } else if (data.status === "failed") {
-                    addLog("失败：" + data.msg);
-                    document.getElementById("startBtn").disabled = false;
-                } else {
-                    setTimeout(checkProgress, 300);
+        function clearLog() {
+            document.getElementById('logBox').innerHTML = '';
+        }
+
+        // ==================== 进度 ====================
+        function updateProgress(percent, status) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressPercent').innerText = percent + '%';
+            if (status) {
+                document.getElementById('progressStatus').innerText = status;
+            }
+        }
+
+        // ==================== 计时 ====================
+        function startTimer() {
+            startTime = new Date();
+        }
+
+        function getElapsed() {
+            if (!startTime) return '0s';
+            return ((new Date() - startTime) / 1000).toFixed(1) + 's';
+        }
+
+        // ==================== 任务历史 ====================
+        function addTaskToHistory(taskId, inputPath, status) {
+            taskHistory.unshift({ taskId, inputPath, status, time: new Date().toLocaleString() });
+            renderTaskHistory();
+        }
+
+        function updateTaskHistoryStatus(taskId, status) {
+            const task = taskHistory.find(t => t.taskId === taskId);
+            if (task) {
+                task.status = status;
+                renderTaskHistory();
+            }
+        }
+
+        function renderTaskHistory() {
+            const container = document.getElementById('taskHistory');
+            if (!taskHistory.length) {
+                container.innerHTML = '<div style="color: #bbb; font-size: 13px; text-align: center; padding: 20px;">暂无转换任务</div>';
+                return;
+            }
+            container.innerHTML = taskHistory.map(t => {
+                const statusClass = `status-${t.status}`;
+                const statusText = { pending: '等待中', running: '转换中', completed: '已完成', failed: '失败' }[t.status] || t.status;
+                return `<div class="task-item">
+                    <div>
+                        <span class="status-dot ${statusClass}"></span>
+                        <span style="font-weight:500;">${t.inputPath.split(/[\\/]/).pop()}</span>
+                        <span style="color:#aaa; margin-left:8px; font-size:11px;">${t.time}</span>
+                    </div>
+                    <div>
+                        <span class="status-dot ${statusClass}" style="margin-right:0;"></span>
+                        <span style="font-size:12px;">${statusText}</span>
+                        <button class="btn btn-outline" style="padding:2px 8px; font-size:11px; margin-left:8px;" onclick="checkTask('${t.taskId}')">查看</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function checkTask(taskId) {
+            try {
+                const r = await fetch(`${base}/cog/progress/${taskId}`);
+                const task = await r.json();
+                addLog(`查询任务 ${taskId}: ${JSON.stringify(task)}`, 'info');
+            } catch (e) {
+                addLog(`查询失败: ${e.message}`, 'error');
+            }
+        }
+
+        // ==================== 核心转换逻辑 ====================
+        async function startConvert() {
+            const inputPath = document.getElementById('inputPath').value.trim();
+            if (!inputPath) {
+                alert('请输入 TIF 文件路径');
+                return;
+            }
+
+            const outputDir = document.getElementById('outputDir').value.trim();
+            const outputFilename = document.getElementById('outputFilename').value.trim();
+            const dstCrs = document.getElementById('dstCrs').value.trim();
+            const profile = document.getElementById('profile').value;
+            const blocksize = document.getElementById('blocksize').value;
+            const overviewLevel = document.getElementById('overviewLevel').value;
+            const bigtiff = document.getElementById('bigtiff').value;
+            const resampling = document.getElementById('resampling').value;
+            const overviewsResampling = document.getElementById('overviewsResampling').value;
+            const nodata = document.getElementById('nodata').value.trim();
+            const dtype = document.getElementById('dtype').value;
+            const quality = document.getElementById('quality').value.trim();
+
+            // 重置 UI
+            document.getElementById('startBtn').disabled = true;
+            updateProgress(0, '准备中...');
+            document.getElementById('resultBox').classList.remove('show');
+            clearLog();
+            startTimer();
+
+            addLog('===== COG 转换启动 =====', 'info');
+            addLog(`输入文件: ${inputPath}`);
+            addLog(`输出目录: ${outputDir || '(输入文件同目录)'}`);
+            addLog(`输出文件名: ${outputFilename || '(自动生成: {原文件名}_{时间戳}_cog.tif)'}`);
+            addLog(`坐标系: ${dstCrs || '(保持原坐标系)'}`);
+            addLog(`压缩: ${profile}, 瓦片: ${blocksize}, 金字塔: ${overviewLevel}层`);
+
+            // 构建表单数据
+            const formData = new FormData();
+            formData.append('file_path', inputPath);
+            if (outputDir) formData.append('output_dir', outputDir);
+            if (outputFilename) formData.append('output_filename', outputFilename);
+            if (dstCrs) formData.append('dst_crs', dstCrs);
+            formData.append('profile', profile);
+            formData.append('blocksize', blocksize);
+            formData.append('overview_level', overviewLevel);
+            formData.append('bigtiff', bigtiff);
+            formData.append('resampling', resampling);
+            if (overviewsResampling) formData.append('overviews_resampling', overviewsResampling);
+            if (nodata !== '') formData.append('nodata', nodata);
+            if (dtype) formData.append('dtype', dtype);
+            if (quality !== '') formData.append('quality', quality);
+
+            try {
+                const r = await fetch(`${base}/cog/local/convert`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await r.json();
+
+                if (result.code !== 200 && result.task_id === undefined) {
+                    addLog(`请求失败: ${result.msg || JSON.stringify(result)}`, 'error');
+                    updateProgress(0, '请求失败');
+                    document.getElementById('startBtn').disabled = false;
+                    return;
                 }
-            });
-    }
-</script>
-    </body>
+
+                currentTaskId = result.task_id;
+                addLog(`任务创建成功: ${currentTaskId}`, 'success');
+                addTaskToHistory(currentTaskId, inputPath, 'running');
+                pollProgress(currentTaskId);
+            } catch (e) {
+                addLog(`请求失败: ${e.message}`, 'error');
+                updateProgress(0, '请求失败');
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function pollProgress(taskId) {
+            if (pollTimer) clearInterval(pollTimer);
+
+            pollTimer = setInterval(async () => {
+                try {
+                    const r = await fetch(`${base}/cog/progress/${taskId}`);
+                    const data = await r.json();
+
+                    const progress = data.progress || 0;
+                    const status = data.status || 'pending';
+                    const msg = data.msg || '';
+
+                    updateProgress(progress, msg);
+                    addLog(msg);
+
+                    if (status === 'completed') {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                        const elapsed = getElapsed();
+                        addLog(`===== 转换完成！耗时 ${elapsed} =====`, 'success');
+                        updateProgress(100, `完成 (${elapsed})`);
+                        updateTaskHistoryStatus(taskId, 'completed');
+
+                        // 显示下载
+                        const downloadLink = document.getElementById('downloadLink');
+                        downloadLink.href = `${base}/cog/result/${taskId}`;
+                        document.getElementById('outputPathInfo').innerText = data.output_path || '';
+                        document.getElementById('resultBox').classList.add('show');
+
+                        document.getElementById('startBtn').disabled = false;
+                    } else if (status === 'failed') {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                        addLog(`===== 转换失败 =====`, 'error');
+                        updateProgress(0, '转换失败');
+                        updateTaskHistoryStatus(taskId, 'failed');
+                        document.getElementById('startBtn').disabled = false;
+                    }
+                } catch (e) {
+                    addLog(`轮询失败: ${e.message}`, 'error');
+                }
+            }, 500);
+        }
+
+        // ==================== 重置 ====================
+        function resetForm() {
+            document.getElementById('inputPath').value = '';
+            document.getElementById('outputDir').value = '';
+            document.getElementById('outputFilename').value = '';
+            document.getElementById('dstCrs').value = '';
+            document.getElementById('profile').value = 'deflate';
+            document.getElementById('blocksize').value = '512';
+            document.getElementById('overviewLevel').value = '6';
+            document.getElementById('bigtiff').value = 'IF_SAFER';
+            document.getElementById('resampling').value = 'bilinear';
+            document.getElementById('overviewsResampling').value = '';
+            document.getElementById('nodata').value = '';
+            document.getElementById('dtype').value = '';
+            document.getElementById('quality').value = '';
+            updateProgress(0, '准备就绪');
+            document.getElementById('resultBox').classList.remove('show');
+            clearLog();
+        }
+    </script>
+</body>
 </html>

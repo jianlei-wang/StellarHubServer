@@ -7,7 +7,7 @@ from typing import Dict, Any
 # 内存中的任务状态字典 (生产环境建议使用 Redis 或 数据库)
 _tasks: Dict[str, Dict[str, Any]] = {}
 
-def init_task(task_id: str):
+def init_task(task_id: str, input_path: str = None):
     """
     初始化一个新任务
     """
@@ -18,7 +18,8 @@ def init_task(task_id: str):
         "msg": "任务已创建",
         "start_time": time.time(),
         "update_time": time.time(),
-        "output_path": None
+        "output_path": None,
+        "input_path": input_path
     }
 
 def update_task(task_id: str, progress: int, status: str, msg: str, output_path: str = None):

@@ -1,144 +1,394 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>文件服务</title>
-  </head>
-  <body>
-    <input
-      type="text"
-      id="path"
-      value="C:/"
-      style="width: 100%; padding: 10px"
-    />
-    <div style="margin-top: 10px;">
-      <button onclick="readDir()">读取目录</button>
-      <button onclick="readText()">读取文本</button>
-      <button onclick="openFile()">打开文件</button>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StellarHub - 文件服务</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon { font-size: 18px; }
+        .path-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .path-bar input {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .path-bar input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary { background: #667eea; color: #fff; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-success { background: #52c41a; color: #fff; }
+        .btn-success:hover { background: #45a816; }
+        .btn-warning { background: #faad14; color: #fff; }
+        .btn-warning:hover { background: #d89a0e; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+        /* 目录列表 */
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+        .file-table th {
+            background: #fafafa;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .file-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .file-table tr:hover { background: #f9f9ff; }
+        .file-table .dir-icon { color: #faad14; }
+        .file-table .file-icon { color: #667eea; }
+        .file-table .clickable { cursor: pointer; color: #667eea; }
+        .file-table .clickable:hover { text-decoration: underline; }
+        .breadcrumb {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .breadcrumb span { color: #999; }
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        /* 文本预览 */
+        .text-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+
+        /* 信息标签 */
+        .info-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .tag-dir { background: #fff7e6; color: #d48806; }
+        .tag-tif { background: #f6ffed; color: #52c41a; }
+        .tag-img { background: #e6f7ff; color: #1890ff; }
+        .tag-txt { background: #f9f0ff; color: #722ed1; }
+        .tag-other { background: #f5f5f5; color: #999; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #bbb;
+            font-size: 14px;
+        }
+
+        .api-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 8px;
+        }
+        .api-info code {
+            background: #f5f5f5;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>StellarHub 文件服务</h1>
+        <p>本地文件浏览与流式访问</p>
     </div>
 
-    <div style="margin-top: 20px;">
-      <label for="outputPath">输出目录（留空则同输入目录）：</label>
-      <input
-        type="text"
-        id="outputDir"
-        placeholder="例如：C:/temp/"
-        style="width: 100%; padding: 10px; margin-top: 5px;"
-      />
-      <label for="dstCrs" style="margin-top: 10px; display: block;">目标坐标系（可选，如 EPSG:4326）：</label>
-      <input
-        type="text"
-        id="dstCrs"
-        placeholder="可选：EPSG:4326"
-        style="width: 100%; padding: 10px; margin-top: 5px;"
-      />
-      
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <div style="flex: 1;">
-          <label>压缩方式：</label>
-          <select id="profile" style="width: 100%; padding: 5px;">
-            <option value="deflate">deflate (推荐)</option>
-            <option value="lzw">lzw</option>
-            <option value="packbits">packbits</option>
-            <option value="none">none</option>
-          </select>
+    <div class="container">
+        <!-- 目录浏览 -->
+        <div class="card">
+            <div class="card-title"><span class="icon">📁</span> 目录浏览</div>
+            <div class="path-bar">
+                <input type="text" id="dirPath" value="C:/" placeholder="输入目录路径，如 C:/ 或 /home/user/">
+                <button class="btn btn-primary" onclick="readDir()">读取目录</button>
+            </div>
+            <div class="breadcrumb" id="breadcrumb"></div>
+            <div id="dirContent">
+                <div class="empty-state">输入路径后点击「读取目录」查看文件列表</div>
+            </div>
+            <div class="api-info">
+                API: <code>GET /api/read-dir?path=...</code>
+            </div>
         </div>
-        <div style="flex: 1;">
-          <label>重采样：</label>
-          <select id="resampling" style="width: 100%; padding: 5px;">
-            <option value="bilinear">bilinear (双线性)</option>
-            <option value="nearest">nearest (最近邻)</option>
-            <option value="cubic">cubic (三次卷积)</option>
-            <option value="lanczos">lanczos</option>
-          </select>
-        </div>
-      </div>
 
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <div style="flex: 1;">
-          <label>金字塔层级：</label>
-          <input type="number" id="overviewLevel" value="6" style="width: 100%; padding: 5px;" />
+        <!-- 文本预览 -->
+        <div class="card">
+            <div class="card-title"><span class="icon">📄</span> 文本文件预览</div>
+            <div class="path-bar">
+                <input type="text" id="textPath" placeholder="输入文本文件路径">
+                <button class="btn btn-success" onclick="readText()">读取内容</button>
+            </div>
+            <div id="textContent"></div>
+            <div class="api-info">
+                API: <code>GET /api/read-text?path=...</code>
+            </div>
         </div>
-        <div style="flex: 1;">
-          <label>瓦片大小：</label>
-          <input type="number" id="blocksize" value="512" style="width: 100%; padding: 5px;" />
-        </div>
-      </div>
 
-      <button style="margin-top: 15px; width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; cursor: pointer;" onclick="convertCog()">转换为 COG</button>
+        <!-- 文件流 -->
+        <div class="card">
+            <div class="card-title"><span class="icon">🌊</span> 文件流访问（支持 Range 请求）</div>
+            <div class="path-bar">
+                <input type="text" id="filePath" placeholder="输入文件路径（支持任意类型文件）">
+                <button class="btn btn-warning" onclick="openFile()">打开文件</button>
+            </div>
+            <p style="font-size: 12px; color: #888; margin-top: 8px;">
+                此接口支持 HTTP Range 请求（206 Partial Content），适用于 COG/GeoTIFF 等需要按需读取的栅格数据。
+            </p>
+            <div class="api-info">
+                API: <code>GET /api/file?path=...</code>
+            </div>
+        </div>
     </div>
-
-    <pre id="res"></pre>
 
     <script>
-      const base = 'http://127.0.0.1:10086';
-      
-      async function readDir() {
-        const path = document.getElementById('path').value;
-        const r = await fetch(`${base}/api/read-dir?path=${encodeURIComponent(path)}`);
-        const result = await r.json();
-        document.getElementById('res').innerText = JSON.stringify(result, null, 2);
-      }
+        const base = window.location.origin;
 
-      async function readText() {
-        const path = document.getElementById('path').value;
-        const r = await fetch(`${base}/api/read-text?path=${encodeURIComponent(path)}`);
-        const result = await r.json();
-        document.getElementById('res').innerText = JSON.stringify(result, null, 2);
-      }
+        // ==================== 目录浏览 ====================
+        async function readDir() {
+            const path = document.getElementById('dirPath').value.trim();
+            if (!path) return;
 
-      function openFile() {
-        const path = document.getElementById('path').value;
-        window.open(`${base}/api/file?path=${encodeURIComponent(path)}`);
-      }
+            try {
+                const r = await fetch(`${base}/api/read-dir?path=${encodeURIComponent(path)}`);
+                const result = await r.json();
 
-      async function convertCog() {
-        const filePath = document.getElementById('path').value;
-        const outputDir = document.getElementById('outputDir').value;
-        const dstCrs = document.getElementById('dstCrs').value;
-        const profile = document.getElementById('profile').value;
-        const resampling = document.getElementById('resampling').value;
-        const overviewLevel = document.getElementById('overviewLevel').value;
-        const blocksize = document.getElementById('blocksize').value;
+                if (result.code !== 200) {
+                    document.getElementById('dirContent').innerHTML =
+                        `<div class="empty-state" style="color:#ff4d4f;">❌ ${result.msg}</div>`;
+                    return;
+                }
 
-        const formData = new FormData();
-        formData.append('file_path', filePath);
-        formData.append('output_dir', outputDir);
-        formData.append('dst_crs', dstCrs);
-        formData.append('profile', profile);
-        formData.append('resampling', resampling);
-        formData.append('overview_level', overviewLevel);
-        formData.append('blocksize', blocksize);
-
-        try {
-          const r = await fetch(`${base}/cog/local/convert`, {
-            method: 'POST',
-            body: formData
-          });
-
-          const result = await r.json();
-          document.getElementById('res').innerText = `任务已提交：\n${JSON.stringify(result, null, 2)}`;
-          
-          if (result.task_id) {
-              // 自动轮询进度
-              pollProgress(result.task_id);
-          }
-        } catch (e) {
-          document.getElementById('res').innerText = `请求失败：${e.message}`;
+                const items = result.data || [];
+                renderBreadcrumb(path);
+                renderFileTable(items);
+            } catch (e) {
+                document.getElementById('dirContent').innerHTML =
+                    `<div class="empty-state" style="color:#ff4d4f;">请求失败: ${e.message}</div>`;
+            }
         }
-      }
 
-      async function pollProgress(taskId) {
-        const timer = setInterval(async () => {
-          const r = await fetch(`${base}/cog/progress/${taskId}`);
-          const task = await r.json();
-          document.getElementById('res').innerText = `转换进度：\n${JSON.stringify(task, null, 2)}`;
-          
-          if (task.status === 'completed' || task.status === 'failed') {
-            clearInterval(timer);
-          }
-        }, 2000);
-      }
+        function renderBreadcrumb(path) {
+            const parts = path.replace(/\\/g, '/').split('/').filter(p => p);
+            let html = '';
+            let accumulated = '';
+
+            // Handle Windows drive letter
+            if (/^[A-Za-z]:$/.test(parts[0])) {
+                accumulated = parts[0] + '/';
+                html += `<a onclick="navigateTo('${accumulated}')">${parts[0]}/</a><span>/</span>`;
+                parts.shift();
+            } else if (path.startsWith('/')) {
+                accumulated = '/';
+                html += `<a onclick="navigateTo('/')">/</a>`;
+            }
+
+            parts.forEach((part, i) => {
+                accumulated += part + '/';
+                if (i < parts.length - 1 || path.endsWith('/')) {
+                    html += `<a onclick="navigateTo('${accumulated}')">${part}</a><span>/</span>`;
+                } else {
+                    html += `<span>${part}</span>`;
+                }
+            });
+
+            document.getElementById('breadcrumb').innerHTML = html;
+        }
+
+        function navigateTo(path) {
+            document.getElementById('dirPath').value = path;
+            readDir();
+        }
+
+        function getExtTag(ext) {
+            const tifExts = ['.tif', '.tiff'];
+            const imgExts = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'];
+            const txtExts = ['.txt', '.json', '.xml', '.csv', '.md', '.log', '.yaml', '.yml', '.ini', '.cfg', '.py', '.js', '.ts', '.html', '.css'];
+
+            if (tifExts.includes(ext)) return '<span class="info-tag tag-tif">TIFF</span>';
+            if (imgExts.includes(ext)) return '<span class="info-tag tag-img">Image</span>';
+            if (txtExts.includes(ext)) return '<span class="info-tag tag-txt">Text</span>';
+            return `<span class="info-tag tag-other">${ext || 'file'}</span>`;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 0) return 'N/A';
+            if (bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+        }
+
+        function renderFileTable(items) {
+            if (!items.length) {
+                document.getElementById('dirContent').innerHTML =
+                    '<div class="empty-state">该目录为空</div>';
+                return;
+            }
+
+            let html = `<table class="file-table">
+                <thead><tr>
+                    <th style="width:30px;"></th>
+                    <th>名称</th>
+                    <th style="width:100px;">大小</th>
+                    <th style="width:80px;">类型</th>
+                    <th style="width:180px;">操作</th>
+                </tr></thead><tbody>`;
+
+            items.forEach(item => {
+                const icon = item.is_dir ? '📁' : '📄';
+                const iconClass = item.is_dir ? 'dir-icon' : 'file-icon';
+                const nameClass = item.is_dir ? 'clickable' : '';
+                const clickAction = item.is_dir
+                    ? `onclick="navigateTo('${item.path.replace(/\\/g, '/')}')"`
+                    : '';
+                const tag = item.is_dir
+                    ? '<span class="info-tag tag-dir">DIR</span>'
+                    : getExtTag(item.ext);
+
+                const actions = item.is_dir
+                    ? `<button class="btn btn-sm btn-primary" onclick="navigateTo('${item.path.replace(/\\/g, '/')}')">进入</button>`
+                    : `${isTextFile(item.ext)
+                        ? `<button class="btn btn-sm btn-success" onclick="previewText('${item.path.replace(/\\/g, '\\\\')}")">预览</button>`
+                        : ''}
+                       <button class="btn btn-sm btn-warning" onclick="openFileStream('${item.path.replace(/\\/g, '\\\\')}")">流式打开</button>`;
+
+                html += `<tr>
+                    <td class="${iconClass}">${icon}</td>
+                    <td class="${nameClass}" ${clickAction}>${item.name}</td>
+                    <td>${item.is_dir ? '-' : formatSize(item.size)}</td>
+                    <td>${tag}</td>
+                    <td>${actions}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('dirContent').innerHTML = html;
+        }
+
+        function isTextFile(ext) {
+            return ['.txt', '.json', '.xml', '.csv', '.md', '.log', '.yaml', '.yml',
+                    '.ini', '.cfg', '.py', '.js', '.ts', '.html', '.css', '.sh',
+                    '.bat', '.toml', '.env', '.gitignore'].includes(ext);
+        }
+
+        // ==================== 文本预览 ====================
+        async function readText() {
+            const path = document.getElementById('textPath').value.trim();
+            if (!path) return;
+            previewText(path);
+        }
+
+        async function previewText(path) {
+            document.getElementById('textPath').value = path;
+            document.getElementById('textContent').innerHTML = '<div class="empty-state">加载中...</div>';
+
+            try {
+                const r = await fetch(`${base}/api/read-text?path=${encodeURIComponent(path)}`);
+                const result = await r.json();
+
+                if (result.code !== 200) {
+                    document.getElementById('textContent').innerHTML =
+                        `<div class="empty-state" style="color:#ff4d4f;">❌ ${result.msg}</div>`;
+                    return;
+                }
+
+                const content = result.data || '';
+                const escaped = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                document.getElementById('textContent').innerHTML =
+                    `<div class="text-preview">${escaped}</div>`;
+            } catch (e) {
+                document.getElementById('textContent').innerHTML =
+                    `<div class="empty-state" style="color:#ff4d4f;">请求失败: ${e.message}</div>`;
+            }
+        }
+
+        // ==================== 文件流 ====================
+        function openFile() {
+            const path = document.getElementById('filePath').value.trim();
+            if (!path) return;
+            openFileStream(path);
+        }
+
+        function openFileStream(path) {
+            document.getElementById('filePath').value = path;
+            window.open(`${base}/api/file?path=${encodeURIComponent(path)}`);
+        }
+
+        // 页面加载时自动读取默认目录
+        // readDir();
     </script>
-  </body>
+</body>
 </html>
